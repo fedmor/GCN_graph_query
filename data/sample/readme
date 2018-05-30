@@ -1,0 +1,26 @@
+[License Agreement]
+    Please read this agreement carefully before using this dataset.
+    By using the data enclosed in this package (Q4, Q8, Q12, Q16, Q20,
+    Q24, and dataset), you agree to become bound by the terms of this license.
+    If you do not agree to the terms of this license, please delete this
+    package and DO NOT USE it.
+
+(1).This copy is for your internal use only. Please DO NOT redistribute it
+    without the permission from the authors (Xifeng Yan, Philip S. Yu and 
+    Jiawei Han). Please DO NOT post this package  on the internet.
+
+(2).This dataset is for performance testing only. No any other usage of the
+    dataset is allowed without a written permission from the authors. It can
+    not be used for any commercial interest.
+
+(3).The authors appreciate it if you can send us your feedback and test results.
+
+(4).The authors do not hold any responsibility for the correctness of this
+    dataset.
+
+
+Xifeng Yan
+Philip S. Yu
+Jiawei Han
+
+Sep 08, 2004
