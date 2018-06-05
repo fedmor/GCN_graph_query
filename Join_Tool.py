@@ -1,9 +1,25 @@
 # -*- coding: utf-8 -*-
-from DT_index import paserData
-import Graph
+# from DT_index import paserData
+# import Graph
 import numpy as np
 import itertools
 
+
+def get_join_order(matching_result, query_graph):
+    freq_vtxs = [0]*len(matching_result)
+    for index in range(len(matching_result)):
+        match_result =np.array( matching_result[index])
+        freq = np.sum(match_result)
+        freq_vtxs[index] = freq
+    vtx_value =[0]*len(matching_result)
+    for id in range(len(matching_result)):
+        freq_vtx = freq_vtxs[id]
+        vtx_out_dregee = len(query_graph[id])
+        value = float(vtx_out_dregee)/freq_vtx
+        vtx_value[id] = value
+    join_order = np.argsort(-np.array(vtx_value))
+
+    return join_order
 
 def get_node_index(v):
     index = []
@@ -30,17 +46,19 @@ def bfs(head_vtx, query_graph):
     return path
 
 
-def get_join_order(queryVtxs, queryEdges, query_graph):
-    query_graph_martix = [[0] * len(queryVtxs)] * len(queryVtxs)
-    for edge in queryEdges:
-        query_graph_martix[edge[0]][edge[1]] = 1
-    b = np.array(query_graph_martix).T
-    head_vtx = 0
-    for i in range(len(b)):
-        if np.sum(b[i]) == 0:
-            head_vtx = 0
-    join_order = bfs(head_vtx, query_graph)
-    return join_order
+# def get_join_order(queryVtxs, queryEdges, query_graph):
+#     query_graph_martix = [[0] * len(queryVtxs)] * len(queryVtxs)
+#     for edge in queryEdges:
+#         query_graph_martix[edge[0]][edge[1]] = 1
+#     b = np.array(query_graph_martix).T
+#     head_vtx = 0
+#     for i in range(len(b)):
+#         if np.sum(b[i]) == 0:
+#             head_vtx = 0
+#     join_order = bfs(head_vtx, query_graph)
+#     return join_order
+
+
 
 
 def joinProcess(oneRst, Chds, matching_children_label, Chd_label_count):
@@ -111,11 +129,12 @@ def frist_join(match_result_vtx_Chd, vtx, Chd_label_count, data_vtx_label, q_vtx
     return partitionRst
 
 
-def next_join(partJoinedGraph, match_result_vtx_Chd, vtx, Chd_label_count, data_vtx_label, q_vtx_children):
+def  next_join(partJoinedGraph, match_result_vtx_Chd, vtx, Chd_label_count, data_vtx_label, q_vtx_children):
     match_results = match_result_vtx_Chd[vtx]
-    partitionRst=[]
+    partitionRst = []
     for perRst in partJoinedGraph:
         for root in match_results:
+            
             if root == perRst[vtx]:
                 Chds = match_results[root]
                 matching_children_label = [data_vtx_label[Chd] for Chd in Chds]
@@ -126,7 +145,7 @@ def next_join(partJoinedGraph, match_result_vtx_Chd, vtx, Chd_label_count, data_
     return partitionRst
 
 
-def join(join_order,match_result_vtx,graph,query_graph,query_vtx_label,data_vtx_label):
+def join(join_order, match_result_vtx, graph, query_graph, query_vtx_label, data_vtx_label):
     # query_vtx_label = {item[0]: item[1] for item in queryVtxs[0]}
     # data_vtx_label = {item[0]: item[1] for item in dataVtx[0]}
     match_result_vtx_Chd = {}
