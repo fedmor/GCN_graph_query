@@ -117,6 +117,7 @@ def find_max_vtxs(dataVtx):
     return id, max_vtx_mub
     pass
 
+
 # def recurse(tree, node_id, vtx, parent=None, depth=0):
 #     print "tree threshold"
 #     print tree.threshold
@@ -147,29 +148,30 @@ def find_max_vtxs(dataVtx):
 #             recurse(tree, tree.children_right[node_id], vtx, node_id, depth=depth + 1)
 #             recurse(tree, tree.children_left[node_id], vtx, node_id, depth=depth + 1)
 
-def recurse(tree, node_id ,vtx, parent=None, depth=0):
+def recurse(tree, node_id, vtx, parent=None, depth=0):
     if node_id == -1:
         yield tree.value[parent]
         return
-    threshold= tree.threshold[node_id]
-    feature= tree.feature[node_id]
+    threshold = tree.threshold[node_id]
+    feature = tree.feature[node_id]
     if feature < 51:
-        if  vtx[feature] > threshold:
+        if vtx[feature] > threshold:
             children = tree.children_right[node_id]
         else:
             children = tree.children_left[node_id]
-        for item in recurse(tree, children, vtx,node_id,depth=depth+1):
+        for item in recurse(tree, children, vtx, node_id, depth=depth + 1):
             yield item
     else:
         if vtx[feature] > threshold:
             children = tree.children_right[node_id]
-            for item in recurse(tree, children, vtx,node_id,depth=depth+1):
+            for item in recurse(tree, children, vtx, node_id, depth=depth + 1):
                 yield item
         else:
-            for item in recurse(tree, tree.children_right[node_id], vtx,node_id,depth=depth+1):
+            for item in recurse(tree, tree.children_right[node_id], vtx, node_id, depth=depth + 1):
                 yield item
-            for item in recurse(tree, tree.children_left[node_id], vtx,node_id,depth=depth+1):
+            for item in recurse(tree, tree.children_left[node_id], vtx, node_id, depth=depth + 1):
                 yield item
+
 
 def paser_DT(id, vtx_nub, graph_vtxs_coding):
     # id = 0
@@ -212,12 +214,14 @@ def coding_graph(dataVtx, dataEdge, label_codes):
         graph_vtxs_coding[key] = vtxs_coding
     return graph_vtxs_coding
 
+
 """
 aggregation garph conding ,{id,[X,Y]}
 """
+
 def agg_garph_coding(data_graph_vtxs_coding):
     graph_X_Y = {}
-    for key,value in data_graph_vtxs_coding.iteritems():
+    for key, value in data_graph_vtxs_coding.iteritems():
         Y = [i[0] for i in value]
         X = []
         for item in value:
@@ -225,17 +229,18 @@ def agg_garph_coding(data_graph_vtxs_coding):
             for i in range(1, len(item)):
                 tmp.extend(item[i])
             X.append(tmp)
-        graph_X_Y[key] =[X,Y]
+        graph_X_Y[key] = [X, Y]
     return graph_X_Y
 
 """
 get DT of every graph in dataset
 sort in map{id,DT}
 """
+
 def get_dt_index(data_graph_vtxs_coding):
     DT_indexes = {}
     graphs_X_Y = agg_garph_coding(data_graph_vtxs_coding)
-    for key,value in graphs_X_Y.iteritems():
+    for key, value in graphs_X_Y.iteritems():
         X = value[0]
         Y = value[1]
         model_tree = DecisionTreeClassifier()
@@ -251,13 +256,13 @@ def index(tree, graph):
     #     for y in pre_y:
     #         tmp.append(y[0])
     #     queryY.append(np.sum(tmp,axis=0))
-    queryY=[]
+    queryY = []
     for vtx in graph:
         tmp = []
-        pre_y = recurse(tree,0,vtx)
+        pre_y = recurse(tree, 0, vtx)
         for y in pre_y:
             tmp.append(y[0])
-        l = np.sum(tmp,axis=0)
+        l = np.sum(tmp, axis=0)
         if l.sum() > 0:
             queryY.append(l)
         else:
@@ -268,18 +273,17 @@ def index(tree, graph):
 def query(DT_indexes, graph):
     graph_match_results = {}
     for index_key, tree in DT_indexes.iteritems():
-        graph_match_result = index(tree,graph)
-        graph_match_results[index_key]=graph_match_result
+        graph_match_result = index(tree, graph)
+        graph_match_results[index_key] = graph_match_result
     return graph_match_results
 
 
 def query_Matching(DT_indexes, query_graphs_X):
-
-    matching_results={}
-    for key,value in query_graphs_X.iteritems():
+    matching_results = {}
+    for key, value in query_graphs_X.iteritems():
         graph_id = key
         graph = value
-        graph_match_result = query(DT_indexes,graph)
+        graph_match_result = query(DT_indexes, graph)
         matching_results[graph_id] = graph_match_result
 
     return matching_results
@@ -298,16 +302,15 @@ def main():
     # begin conding vtx , get L,N,Eigenvalues [[L],[N],[Eigenvalues]]
     data_graph_vtxs_coding = coding_graph(dataVtx, dataEdge, label_codes)
     query_garph_vtx_coding = coding_graph(queryVtxs, queryEdges, label_codes)
-    query_graphs_X={}
+    query_graphs_X = {}
     for key, value in query_garph_vtx_coding.iteritems():
-        query_graph_X=[]
+        query_graph_X = []
         for item in value:
             tmp = []
             for i in range(1, len(item)):
                 tmp.extend(item[i])
             query_graph_X.append(tmp)
         query_graphs_X[key] = query_graph_X
-
 
     # """
     # 测试查询
@@ -345,8 +348,8 @@ def main():
     # print(pre)
 
     DT_indexes = get_dt_index(data_graph_vtxs_coding)
-    dome_graph={0:query_graphs_X[0]}
-    query_matching_result = query_Matching(DT_indexes,dome_graph)
+    dome_graph = {0: query_graphs_X[0]}
+    query_matching_result = query_Matching(DT_indexes, dome_graph)
 
     id, vtx_nub = find_max_vtxs(dataVtx)
     paser_DT(id, vtx_nub, data_graph_vtxs_coding)
