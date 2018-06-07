@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
-import Graph
+
 import numpy as np
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.tree import DecisionTreeClassifier
 import graphviz
 import pydotplus
+import os
+import sys
+
+from time import time
+from Join_Tool import get_join_order, join
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree import DecisionTreeClassifier
 from sklearn import tree
 from IPython.display import Image
-import os
+from Graph import Graphs
 
 """
 解析数据
@@ -35,9 +40,9 @@ def paserData(datafilePath):
             vtx_item = [int(i) for i in item]
             vtx[graphId].append(vtx_item)
             label_set.append(vtx_item[1])
-            if vtx_item[1] == 51:
-                print(graphId)
-                print(vtx_item)
+            # if vtx_item[1] == 51:
+            #     print(graphId)
+            #     print(vtx_item)
         if "e" in line:
             item = line.split(" ")[1:]
             edge_item = [int(i) for i in item]
@@ -47,10 +52,11 @@ def paserData(datafilePath):
 
 # 获取图中所有顶点的label编码
 def coding_label(label_set):
-    label_list = list(label_set)
+    max_label = max(label_set)
+    label_list = [i for i in range(0, max_label + 1)]
     label_map = {}
-    for label in label_set:
-        coding = [0] * len(label_set)
+    for label in label_list:
+        coding = [0] * len(label_list)
         coding[label_list.index(label)] = 1
         label_map.update({label: coding})
     return label_map
@@ -154,7 +160,7 @@ def recurse(tree, node_id, vtx, parent=None, depth=0):
         return
     threshold = tree.threshold[node_id]
     feature = tree.feature[node_id]
-    if feature < 51:
+    if feature < 60:
         if vtx[feature] > threshold:
             children = tree.children_right[node_id]
         else:
@@ -219,6 +225,7 @@ def coding_graph(dataVtx, dataEdge, label_codes):
 aggregation garph conding ,{id,[X,Y]}
 """
 
+
 def agg_garph_coding(data_graph_vtxs_coding):
     graph_X_Y = {}
     for key, value in data_graph_vtxs_coding.iteritems():
@@ -232,10 +239,12 @@ def agg_garph_coding(data_graph_vtxs_coding):
         graph_X_Y[key] = [X, Y]
     return graph_X_Y
 
+
 """
 get DT of every graph in dataset
 sort in map{id,DT}
 """
+
 
 def get_dt_index(data_graph_vtxs_coding):
     DT_indexes = {}
@@ -249,7 +258,7 @@ def get_dt_index(data_graph_vtxs_coding):
     return DT_indexes
 
 
-def index(tree, graph):
+def index(tree, query_graph_x):
     # for X in queryX:
     #     tmp = []
     #     pre_y = recurse(model_tree.tree_,0,X)
@@ -257,7 +266,7 @@ def index(tree, graph):
     #         tmp.append(y[0])
     #     queryY.append(np.sum(tmp,axis=0))
     queryY = []
-    for vtx in graph:
+    for vtx in query_graph_x:
         tmp = []
         pre_y = recurse(tree, 0, vtx)
         for y in pre_y:
@@ -270,38 +279,47 @@ def index(tree, graph):
     return queryY
 
 
-def query(DT_indexes, graph):
+def query(DT_indexes, query_graph_x):
     graph_match_results = {}
     for index_key, tree in DT_indexes.iteritems():
-        graph_match_result = index(tree, graph)
+        graph_match_result = index(tree, query_graph_x)
         graph_match_results[index_key] = graph_match_result
     return graph_match_results
 
 
-def query_Matching(DT_indexes, query_graphs_X):
+def query_Matching(DT_indexes, query_graphs_X, query_graphs):
     matching_results = {}
     for key, value in query_graphs_X.iteritems():
         graph_id = key
-        graph = value
-        graph_match_result = query(DT_indexes, graph)
+        query_graph = query_graphs[key]
+        matching_vtx = query_graph.keys()
+        query_graph_x = [value[vtx] for vtx in matching_vtx]  # 过滤出度为1的顶点
+        graph_match_result = query(DT_indexes, query_graph_x)
         matching_results[graph_id] = graph_match_result
 
-    return matching_results
+    return matching_results, matching_vtx
 
 
-def main():
-    datafilePath = "./data/sample/dataset"
-    queryfilePath = "./data/sample/Q4"
+def getsize(DT_indexes):
+    sizeB = sys.getsizeof(DT_indexes)
+    sizeM = float(sizeB) / 1024 / 1024
+    return sizeM
+
+
+def main(datafilePath, queryfilePath):
+    datafilePath = datafilePath
+    queryfilePath = queryfilePath
     """
     paser data graph and query graph
     """
+
     dataVtx, dataEdge, label_set = paserData(datafilePath)
     queryVtxs, queryEdges, q_label_set = paserData(queryfilePath)
 
     label_codes = coding_label(label_set)
     # begin conding vtx , get L,N,Eigenvalues [[L],[N],[Eigenvalues]]
-    data_graph_vtxs_coding = coding_graph(dataVtx, dataEdge, label_codes)
     query_garph_vtx_coding = coding_graph(queryVtxs, queryEdges, label_codes)
+
     query_graphs_X = {}
     for key, value in query_garph_vtx_coding.iteritems():
         query_graph_X = []
@@ -346,16 +364,85 @@ def main():
 
     # pre = model_tree.predict(queryX)
     # print(pre)
+    query_graph_list = Graphs(queryEdges)
+    data_graph_list = Graphs(dataEdge)
 
+    # building index
+    print("begin building index...")
+    building_index_start = time()
+    data_graph_vtxs_coding = coding_graph(dataVtx, dataEdge, label_codes)
     DT_indexes = get_dt_index(data_graph_vtxs_coding)
-    dome_graph = {0: query_graphs_X[0]}
-    query_matching_result = query_Matching(DT_indexes, dome_graph)
+    building_index_stop = time()
+    print("finish building index...")
 
-    id, vtx_nub = find_max_vtxs(dataVtx)
-    paser_DT(id, vtx_nub, data_graph_vtxs_coding)
+    dome_query_graph_X = {0: query_graphs_X[0]}
+    query_graphs = {0: query_graph_list[0]}
+
+    # query
+    print("begin query...")
+    begin_query = time()
+    query_matching_result, query_matching_vtx = query_Matching(DT_indexes, dome_query_graph_X, query_graphs)
+    finish_query = time()
+    print("finish query ...")
+
+    # sample = query_matching_result[0][0]
+    # print "query_matching_vtx: ", query_matching_vtx
+    #
+    # for i in sample:
+    #     s = ""
+    #     for index in range(len(i)):
+    #         if i[index] == 1:
+    #             s += (str(index) + ",")
+    #     print(s)
+
+    # join
+    print("begin join...")
+    begin_join = time()
+    sum_join_garph = {}
+    for qgraph_id in query_matching_result:  # query_matching_result:{query graph id:{data graph id :[matching result]}}
+        matching_results = query_matching_result[qgraph_id]
+        query_graph = query_graph_list[qgraph_id]
+        query_vtx_label = {item[0]: item[1] for item in queryVtxs[qgraph_id]}
+        JoinGraph = []
+        for dgarph_id in matching_results:
+            data_graph = data_graph_list[dgarph_id]
+            matching_result = matching_results[dgarph_id]
+            data_vtx_label = {item[0]: item[1] for item in dataVtx[dgarph_id]}
+            join_order = get_join_order(matching_result, query_graph, query_matching_vtx)
+            partJoinGraph = join(join_order, query_matching_vtx, matching_result, data_graph, query_graph,
+                                 query_vtx_label, data_vtx_label)
+            JoinGraph.append({"dgarph_id": dgarph_id, "partJoinGraph": partJoinGraph})
+        sum_join_garph[qgraph_id] = JoinGraph
+    finish_join = time()
+    print("finish join...")
+
+    for q_id in range(len(sum_join_garph)):
+        joined_graphs = sum_join_garph[q_id]
+        graph_sum = [len(item["partJoinGraph"]) for item in joined_graphs]
+        sum = np.sum(np.array(graph_sum))
+        q_size = len(queryVtxs[q_id])
+
+        print("--------------------------Summary--------------------------")
+        print("query graph %i ,size %i ,result count: %i" % (q_id, q_size, sum))
+        print("index size: %f MB" % (getsize(DT_indexes)))
+        print("index builded time: %f s" % (building_index_stop - building_index_start))
+        print("graph query time: %f s" % (finish_query - begin_query))
+        print("join time: %f s" % (finish_join - begin_join))
+        print("------------------------------------------------------------")
+    # id, vtx_nub = find_max_vtxs(dataVtx)
+    # paser_DT(id, vtx_nub, data_graph_vtxs_coding)
 
     pass
 
 
 if __name__ == '__main__':
-    main()
+    datafilePath = "./data/sample/dataset"
+    Q4 = "./data/sample/Q4"
+    Q8 = "./data/sample/Q8"
+    Q12 = "./data/sample/Q12"
+    Q16 = "./data/sample/Q16"
+    Q20 = "./data/sample/Q20"
+    Q24 = "./data/sample/Q24"
+    queryfilePaths = [Q4, Q8, Q12, Q16, Q20, Q24]
+    for queryfilePath in queryfilePaths:
+        main(datafilePath, queryfilePath)
